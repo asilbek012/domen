@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASILBEK | NEURAL OS V70.0 SPY-X</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { 
+            --neon-blue: #00f3ff; --neon-pink: #ff00ff; --neon-green: #0f0; 
+            --bg-dark: #000505; --win-bg: rgba(0, 10, 15, 0.95); 
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Share Tech Mono', monospace; }
+        body { background: var(--bg-dark); color: white; height: 100vh; overflow: hidden; }
+
+        #neural-canvas { position: fixed; inset: 0; z-index: -1; }
+
+        /* Status Bar */
+        #cloud-status {
+            position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
+            padding: 5px 20px; border: 1px solid var(--neon-blue);
+            border-radius: 20px; font-size: 0.7rem; color: var(--neon-blue);
+            background: rgba(0, 0, 0, 0.8); z-index: 1000; display: flex; align-items: center; gap: 15px;
+        }
+
+        /* Windows */
+        .window { 
+            position: absolute; background: var(--win-bg); border: 1px solid var(--neon-blue); 
+            display: none; flex-direction: column; z-index: 100; backdrop-filter: blur(15px);
+            box-shadow: 0 0 30px rgba(0, 243, 255, 0.2); border-radius: 8px; overflow: hidden;
+        }
+        .win-header { padding: 10px; background: rgba(0, 243, 255, 0.1); cursor: grab; display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; border-bottom: 1px solid var(--neon-blue); }
+        .win-body { padding: 15px; overflow: auto; height: 100%; }
+        .close-btn { color: var(--neon-pink); cursor: pointer; font-weight: bold; }
+
+        /* Camera Feed Style */
+        #remote-video { width: 100%; background: #000; border: 1px solid var(--neon-pink); border-radius: 4px; display: none; transform: scaleX(-1); }
+
+        /* App Launcher */
+        #launcher-btn { position: fixed; bottom: 20px; left: 30px; z-index: 6000; cursor: pointer; color: var(--neon-blue); font-size: 2rem; filter: drop-shadow(0 0 10px var(--neon-blue)); }
+        #app-drawer {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.95);
+            z-index: 5000; display: none; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 30px; padding: 100px 50px; backdrop-filter: blur(20px);
+        }
+        .app-item { display: flex; flex-direction: column; align-items: center; gap: 10px; cursor: pointer; transition: 0.3s; color: var(--neon-blue); }
+        .app-item:hover { color: var(--neon-pink); transform: scale(1.1); }
+        .app-item i { font-size: 3rem; }
+
+        /* Dock */
+        .dock { position: fixed; bottom: 15px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; padding: 10px 30px; background: rgba(0, 10, 15, 0.9); border: 1px solid var(--neon-blue); border-radius: 30px; z-index: 1000; }
+        .dock-icon { font-size: 1.4rem; color: var(--neon-blue); cursor: pointer; }
+
+        .scan-line { width: 100%; height: 2px; background: var(--neon-blue); position: absolute; top: 0; animation: scan 3s infinite linear; opacity: 0.3; pointer-events: none; }
+        @keyframes scan { from { top: 0; } to { top: 100%; } }
+    </style>
+</head>
+<body>
+
+    <canvas id="neural-canvas"></canvas>
+    
+    <div id="cloud-status">
+        <div id="sig-light" style="width:10px; height:10px; background:var(--neon-green); border-radius:50%;"></div>
+        <span>NODE: <span id="node-id">LOCAL_HOST</span></span>
+        <span>BAT: <span id="bat-level">--%</span></span>
+    </div>
+
+    <div id="launcher-btn" onclick="toggleLauncher()"><i class="fas fa-ghost"></i></div>
+
+    <div id="app-drawer">
+        <div class="app-item" onclick="openApp('win-remote')"><i class="fas fa-user-secret"></i><span>Spy Center</span></div>
+        <div class="app-item" onclick="openApp('win-term')"><i class="fas fa-terminal"></i><span>Root Shell</span></div>
+        <div class="app-item" onclick="accessCamera()"><i class="fas fa-video"></i><span>Live CCTV</span></div>
+        <div class="app-item" onclick="location.reload()"><i class="fas fa-power-off"></i><span>Shutdown</span></div>
+        <div class="app-item" onclick="toggleLauncher()" style="opacity:0.5;"><i class="fas fa-chevron-down"></i><span>Back</span></div>
+    </div>
+
+    <div class="window" id="win-remote" style="left: 50%; top: 20%; width: 350px;">
+        <div class="win-header"><span><i class="fas fa-satellite"></i> REMOTE_SPY_v7</span><span class="close-btn" onclick="toggle('win-remote')">×</span></div>
+        <div class="win-body">
+            <div id="scanner-ui">
+                <button onclick="scanDevices()" style="width:100%; padding:12px; background:transparent; border:1px solid var(--neon-blue); color:var(--neon-blue); cursor:pointer; font-weight:bold;">SCAN NETWORK</button>
+                <div id="dev-list" style="margin-top:15px; font-size:0.8rem; color:var(--neon-green);"></div>
+            </div>
+            <div id="spy-ui" style="display:none;">
+                <video id="remote-video" autoplay playsinline></video>
+                <div class="scan-line"></div>
+                <div id="spy-log" style="font-size:0.7rem; color:var(--neon-pink); margin-top:10px; height:80px; overflow:auto;"></div>
+                <button onclick="downloadData()" style="width:100%; margin-top:10px; padding:8px; background:var(--neon-pink); color:white; border:none; cursor:pointer;">STEAL_DATABASE</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="window" id="win-term" style="left: 10%; top: 15%; width: 450px; height: 300px;">
+        <div class="win-header"><span>>_ KERNEL_LOG</span><span class="close-btn" onclick="toggle('win-term')">×</span></div>
+        <div class="win-body" style="background:rgba(0,0,0,0.9); font-size:0.75rem; color:var(--neon-green);">
+            <div id="t-out"></div>
+            <div style="display:flex;"><span>#&nbsp;</span><input type="text" id="t-in" style="width:100%; background:transparent; border:none; color:white; outline:none;"></div>
+        </div>
+    </div>
+
+    <div class="dock">
+        <i class="fas fa-microchip dock-icon" onclick="openApp('win-term')"></i>
+        <i class="fas fa-home dock-icon" onclick="closeAll()"></i>
+        <i class="fas fa-wifi dock-icon" onclick="openApp('win-remote')"></i>
+    </div>
+
+    <script>
+        // 1. NEURAL CANVAS
+        const canvas = document.getElementById('neural-canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+        let points = [];
+        for(let i=0; i<70; i++) points.push({x: Math.random()*canvas.width, y: Math.random()*canvas.height, vx: (Math.random()-0.4), vy: (Math.random()-0.4)});
+
+        function draw() {
+            ctx.fillStyle = "rgba(0, 5, 5, 0.3)"; ctx.fillRect(0,0,canvas.width, canvas.height);
+            points.forEach(p => {
+                p.x += p.vx; p.y += p.vy;
+                if(p.x<0||p.x>canvas.width) p.vx*=-1; if(p.y<0||p.y>canvas.height) p.vy*=-1;
+                ctx.fillStyle = "#00f3ff"; ctx.beginPath(); ctx.arc(p.x, p.y, 1, 0, Math.PI*2); ctx.fill();
+            });
+            requestAnimationFrame(draw);
+        }
+        draw();
+
+        // 2. REAL DEVICE DATA (Battery)
+        navigator.getBattery().then(bat => {
+            const update = () => { document.getElementById('bat-level').innerText = (bat.level * 100).toFixed(0) + "%"; };
+            update(); bat.addEventListener('levelchange', update);
+        });
+
+        // 3. SPY LOGIC
+        function scanDevices() {
+            const list = document.getElementById('dev-list');
+            list.innerHTML = "> SKANERLANMOQDA...";
+            speak("Atrofdagi qurilmalar qidirilmoqda.");
+            setTimeout(() => {
+                list.innerHTML = `
+                    <div onclick="targetReady('iPhone 15 Pro')" style="padding:8px; border-bottom:1px solid #222; cursor:pointer;">[+] iPhone 15 Pro - 192.168.0.4</div>
+                    <div onclick="targetReady('Samsung S24')" style="padding:8px; border-bottom:1px solid #222; cursor:pointer;">[+] Samsung S24 - 192.168.0.7</div>
+                `;
+            }, 2000);
+        }
+
+        function targetReady(name) {
+            document.getElementById('scanner-ui').style.display = 'none';
+            document.getElementById('spy-ui').style.display = 'block';
+            document.getElementById('spy-log').innerHTML = `> TARGET_LOCKED: ${name}<br>> WAITING_FOR_EXPLOIT...`;
+            speak(name + " nishonga olindi. Kameraga ulanish kutilmoqda.");
+        }
+
+        async function accessCamera() {
+            openApp('win-remote');
+            const video = document.getElementById('remote-video');
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                video.style.display = "block";
+                document.getElementById('spy-log').innerHTML += `<br><span style="color:var(--neon-green)">> CCTV_FEED_ACTIVE</span>`;
+                speak("Jonli efir o'rnatildi.");
+            } catch (err) {
+                alert("Kameraga ruxsat berilmadi!");
+            }
+        }
+
+        function downloadData() {
+            let log = document.getElementById('spy-log');
+            log.innerHTML += `<br>> O'G'IRLANMOQDA: /Photos/DCIM/...`;
+            setTimeout(() => { 
+                log.innerHTML += `<br>> MUVAFFARIYATLI! 4.2GB DATA YUKLANDI.`; 
+                speak("Barcha ma'lumotlar bazaga ko'chirildi.");
+            }, 3000);
+        }
+
+        // 4. UI HELPERS
+        function toggleLauncher() { const d = document.getElementById('app-drawer'); d.style.display = (d.style.display === 'grid') ? 'none' : 'grid'; }
+        function openApp(id) { toggleLauncher(); document.getElementById(id).style.display = 'flex'; }
+        function toggle(id) { const w = document.getElementById(id); w.style.display = (w.style.display === 'none') ? 'flex' : 'none'; }
+        function closeAll() { document.querySelectorAll('.window').forEach(w => w.style.display = 'none'); document.getElementById('app-drawer').style.display = 'none'; }
+        function speak(t) { const s = new SpeechSynthesisUtterance(t); s.lang = 'uz-UZ'; window.speechSynthesis.speak(s); }
+
+        // Window Dragging
+        document.querySelectorAll('.window').forEach(win => {
+            const h = win.querySelector('.win-header');
+            h.onmousedown = (e) => {
+                let sx = e.clientX - win.offsetLeft, sy = e.clientY - win.offsetTop;
+                document.onmousemove = (e) => { win.style.left = e.clientX - sx + 'px'; win.style.top = e.clientY - sy + 'px'; };
+                document.onmouseup = () => document.onmousemove = null;
+            };
+        });
+
+        window.onload = () => speak("Tizim tayyor. Asilbek, ilohiy rejim faollashtirildi.");
+    </script>
+</body>
+</html>
